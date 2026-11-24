@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --color-ink-950: #0f1113;
+  --color-ink-900: #14171a;
+  --color-ink-800: #1a1e22;
+  --color-ink-700: #23282e;
+  --color-ink-600: #2e353c;
+  --color-ink-500: #434c56;
+  --color-ink-400: #667080;
+  --color-ink-300: #8e98a5;
+  --color-ink-200: #b7bfc9;
+  --color-ink-100: #e4e8ec;
+
+  --color-brand-300: #6ff0e0;
+  --color-brand-400: #34e0cc;
+  --color-brand-500: #1ec9b5;
+  --color-brand-600: #12a595;
+
+  --color-danger: #f87171;
+  --color-warn: #fbbf24;
+
+  --animate-fade-in: fade-in 160ms ease-out;
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    background: var(--color-ink-950);
+    color: var(--color-ink-100);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--color-brand-400); outline-offset: 2px; }
+  ::selection { background: color-mix(in srgb, var(--color-brand-400) 35%, transparent); }
+  input[type="number"]::-webkit-inner-spin-button { opacity: .4; }
+
+  /* Barra de rolagem discreta */
+  * { scrollbar-width: thin; scrollbar-color: var(--color-ink-600) transparent; }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-ink-700 bg-ink-800/80;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-ink-600 bg-ink-700 px-3.5 py-2 text-sm font-medium text-ink-100 transition select-none;
+    @apply hover:border-ink-500 hover:bg-ink-600 active:scale-[.98] disabled:opacity-40 disabled:hover:bg-ink-700 disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply border-brand-500 bg-brand-500 text-ink-950 font-semibold hover:border-brand-400 hover:bg-brand-400 disabled:hover:bg-brand-500;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-ink-200 hover:bg-ink-700 hover:border-transparent disabled:hover:bg-transparent;
+  }
+  .btn-danger {
+    @apply border-transparent bg-transparent text-danger hover:bg-danger/10 hover:border-transparent;
+  }
+  .icon-btn {
+    @apply inline-flex size-10 items-center justify-center rounded-xl text-ink-200 transition select-none;
+    @apply hover:bg-ink-700 hover:text-ink-100 active:scale-95 disabled:opacity-40 disabled:hover:bg-transparent;
+  }
+  .field {
+    @apply w-full rounded-xl border border-ink-600 bg-ink-900 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-400;
+    @apply focus:border-brand-500 focus:outline-none focus-visible:outline-none;
+  }
+  .label {
+    @apply text-xs font-medium uppercase tracking-wider text-ink-300;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-ink-600 px-3 py-1 text-xs font-medium text-ink-200 transition hover:border-ink-500;
+  }
+  .chip[data-active="true"] {
+    @apply border-brand-500 bg-brand-500/15 text-brand-300;
+  }
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+/* Controles deslizantes */
+input[type="range"].range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  touch-action: pan-y;
+}
+input[type="range"].range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-ink-600);
+}
+input[type="range"].range::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-ink-600);
+}
+input[type="range"].range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px; height: 20px; margin-top: -7px;
+  border-radius: 999px;
+  background: var(--color-brand-400);
+  border: 3px solid var(--color-ink-900);
+  box-shadow: 0 0 0 1px var(--color-brand-500);
+}
+input[type="range"].range::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 999px;
+  background: var(--color-brand-400);
+  border: 3px solid var(--color-ink-900);
+  box-shadow: 0 0 0 1px var(--color-brand-500);
+}
+input[type="range"].range:disabled { opacity: .4; }
+
+/* Modo tela cheia do cartão do player */
+.player-card:fullscreen {
+  background: var(--color-ink-950);
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 12px;
+  overflow: auto;
+}
+.player-card:fullscreen .stage { flex: 1 1 auto; aspect-ratio: auto; min-height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
