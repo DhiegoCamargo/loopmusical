@@ -5,10 +5,14 @@ export interface Prefs {
   muted: boolean;
   lastTrackId: string | null;
   sidebarTab: 'library' | 'clips' | 'practice';
+  /** Tamanho do vídeo: normal, pequeno ou oculto (só o player). */
+  videoView: VideoView;
 }
 
+export type VideoView = 'full' | 'compact' | 'hidden';
+
 const KEY = 'loop-musical:prefs:v1';
-const DEFAULTS: Prefs = { volume: 0.9, muted: false, lastTrackId: null, sidebarTab: 'library' };
+const DEFAULTS: Prefs = { volume: 0.9, muted: false, lastTrackId: null, sidebarTab: 'library', videoView: 'full' };
 
 export function loadPrefs(): Prefs {
   try {
@@ -20,6 +24,7 @@ export function loadPrefs(): Prefs {
       muted: typeof p.muted === 'boolean' ? p.muted : DEFAULTS.muted,
       lastTrackId: typeof p.lastTrackId === 'string' ? p.lastTrackId : null,
       sidebarTab: p.sidebarTab === 'clips' || p.sidebarTab === 'practice' ? p.sidebarTab : 'library',
+      videoView: p.videoView === 'compact' || p.videoView === 'hidden' ? p.videoView : 'full',
     };
   } catch {
     return { ...DEFAULTS };

@@ -130,7 +130,10 @@ input[type="range"].range:disabled { opacity: .4; }
   gap: 12px;
   overflow: auto;
 }
-.player-card:fullscreen .stage { flex: 1 1 auto; aspect-ratio: auto; min-height: 0; }
+.player-card:fullscreen .stage { flex: 1 1 auto; aspect-ratio: auto; min-height: 0; height: auto; max-width: none; }
+/* Em tela cheia o vídeo sempre aparece, mesmo se estiver pequeno ou oculto. */
+.player-card:fullscreen .stage-host { visibility: visible; }
+.player-card:fullscreen .stage-cover { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

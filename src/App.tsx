@@ -3,12 +3,12 @@ import { LibraryProvider, useLibrary } from './hooks/useLibrary';
 import { useStudySession } from './hooks/useStudySession';
 import { useKeyboardShortcuts, SHORTCUTS } from './hooks/useKeyboardShortcuts';
 import { useWaveform } from './hooks/useWaveform';
-import { loadPrefs, savePrefs } from './services/storage/prefs';
+import { loadPrefs, savePrefs, type VideoView } from './services/storage/prefs';
 import type { Track } from './types';
 import { formatRate } from './lib/time';
 import { Icon } from './components/ui/Icon';
 import { Toasts, type ToastMessage } from './components/ui/controls';
-import { PlayerStage } from './components/player/PlayerStage';
+import { PlayerStage, effectiveVideoView } from './components/player/PlayerStage';
 import { Timeline } from './components/player/Timeline';
 import { Transport } from './components/player/Transport';
 import { LoopPanel } from './components/player/LoopPanel';
@@ -69,6 +69,13 @@ function Shell({ notify }: { notify: (text: string, kind?: ToastMessage['kind'])
       disabled={session.engineSnap.session}
     />
   );
+
+  const [videoView, setVideoView] = useState<VideoView>(() => loadPrefs().videoView);
+  const changeVideoView = (v: VideoView) => {
+    setVideoView(v);
+    savePrefs({ videoView: v });
+  };
+  const hasVideo = !!track && (track.source === 'youtube' || !!track.local?.isVideo);
 
   const changeTab = (t: Tab) => {
     setTab(t);
@@ -164,12 +171,25 @@ function Shell({ notify }: { notify: (text: string, kind?: ToastMessage['kind'])
                     <Icon name={track.source === 'youtube' ? 'video' : 'music'} size={17} />
                   </span>
                   <h2 className="min-w-0 flex-1 truncate text-base font-semibold">{track.title}</h2>
+                  {hasVideo && (
+                    <select
+                      className="field !w-auto !py-1 text-sm"
+                      aria-label="Tamanho do vídeo"
+                      title={track.source === 'youtube' ? 'O YouTube não permite esconder o vídeo; o menor tamanho permitido é 200×200 px.' : 'Tamanho do vídeo'}
+                      value={effectiveVideoView(track, videoView)}
+                      onChange={(e) => changeVideoView(e.target.value as VideoView)}
+                    >
+                      <option value="full">Vídeo normal</option>
+                      <option value="compact">Vídeo pequeno</option>
+                      {track.source !== 'youtube' && <option value="hidden">Ocultar vídeo</option>}
+                    </select>
+                  )}
                   <button className="icon-btn !size-9" onClick={() => setActiveId(null)} aria-label="Fechar música" title="Fechar música">
                     <Icon name="x" size={18} />
                   </button>
                 </div>
 
-                <PlayerStage track={track} media={media} fileState={session.fileState} setHost={session.setHost} onProvideFile={(f) => void session.provideFile(f)} countBeat={engineSnap.phase === 'countin' ? engineSnap.countBeat : 0} />
+                <PlayerStage track={track} media={media} fileState={session.fileState} setHost={session.setHost} onProvideFile={(f) => void session.provideFile(f)} countBeat={engineSnap.phase === 'countin' ? engineSnap.countBeat : 0} view={videoView} />
 
                 {(practiceActive || engineSnap.phase === 'finished') && (
                   <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-500/60 bg-brand-500/10 px-3 py-2 text-sm" aria-live="polite">

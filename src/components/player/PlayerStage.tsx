@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { FileState } from '../../hooks/useStudySession';
 import type { MediaState, Track } from '../../types';
 import { Icon } from '../ui/Icon';
+import type { VideoView } from '../../services/storage/prefs';
 
 interface Props {
   track: Track | null;
@@ -11,20 +12,46 @@ interface Props {
   onProvideFile: (file: File) => void;
   /** Tempo atual da contagem (1, 2, 3…); 0 = sem contagem. */
   countBeat?: number;
+  /** Tamanho do vídeo escolhido pelo usuário. */
+  view?: VideoView;
+}
+
+/**
+ * Modo efetivo: o YouTube exige que o player fique visível (mínimo 200×200 px),
+ * então para vídeos do YouTube "oculto" vira "pequeno".
+ */
+export function effectiveVideoView(track: Track | null, view: VideoView): VideoView {
+  if (track?.source === 'youtube' && view === 'hidden') return 'compact';
+  return view;
 }
 
 /**
  * Área de vídeo. O elemento `host` sempre existe: o controlador de mídia (YouTube ou local)
  * monta nele o player. Mensagens e estados vazios ficam sobrepostos.
  */
-export function PlayerStage({ track, media, fileState, setHost, onProvideFile, countBeat = 0 }: Props) {
+export function PlayerStage({ track, media, fileState, setHost, onProvideFile, countBeat = 0, view = 'full' }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const isAudio = track?.source === 'local' && track.local && !track.local.isVideo;
   const loading = !!track && media.status === 'loading' && fileState !== 'missing';
+  const mode = isAudio ? 'full' : effectiveVideoView(track, view);
+  const hidden = !isAudio && mode === 'hidden';
+  const size = isAudio ? 'h-40 sm:h-48' : mode === 'compact' ? (track?.source === 'youtube' ? 'h-[200px] max-w-[356px]' : 'aspect-video max-w-[240px]') : mode === 'hidden' ? 'stage-hidden h-24' : 'aspect-video';
 
   return (
-    <div className={`stage relative w-full overflow-hidden rounded-2xl bg-black ${isAudio ? 'h-40 sm:h-48' : 'aspect-video'}`}>
-      <div ref={setHost} className={`absolute inset-0 ${isAudio ? 'invisible' : ''}`} />
+    <div className={`stage relative w-full overflow-hidden rounded-2xl bg-black ${size}`}>
+      <div ref={setHost} className={`stage-host absolute inset-0 ${isAudio || hidden ? 'invisible' : ''}`} />
+
+      {hidden && track && media.status !== 'error' && fileState !== 'missing' && (
+        <div className="stage-cover absolute inset-0 flex items-center gap-3 bg-gradient-to-br from-ink-800 to-ink-950 px-4">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brand-500/15 text-brand-400">
+            <Icon name="headphones" size={24} />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate font-semibold">{track.title}</p>
+            <p className="truncate text-xs text-ink-300">Vídeo oculto: tocando só o som</p>
+          </div>
+        </div>
+      )}
 
       {isAudio && track && media.status !== 'error' && (
         <div className="absolute inset-0 flex items-center gap-4 bg-gradient-to-br from-ink-800 to-ink-950 px-6">
