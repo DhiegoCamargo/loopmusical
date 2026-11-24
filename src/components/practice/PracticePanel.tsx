@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { StudySession } from '../../hooks/useStudySession';
 import { LOCAL_RATES } from '../../services/media/LocalMediaController';
 import { buildRateSteps } from '../../services/practice/LoopEngine';
@@ -5,7 +6,7 @@ import { formatClock, formatRate } from '../../lib/time';
 import { Field, NumberField, Switch } from '../ui/controls';
 import { Icon } from '../ui/Icon';
 
-export function PracticePanel({ session }: { session: StudySession }) {
+export function PracticePanel({ session, tempo }: { session: StudySession; tempo?: ReactNode }) {
   const { practice, engineSnap: snap, media, a, b } = session;
   const active = snap.session;
   const hasRange = a !== null && b !== null;
@@ -118,6 +119,7 @@ export function PracticePanel({ session }: { session: StudySession }) {
               </label>
             </div>
           )}
+          {practice.countIn > 0 && tempo}
         </div>
 
         <div className="space-y-3 border-t border-ink-700 pt-4">

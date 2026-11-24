@@ -4,6 +4,7 @@ import { parseTime, formatPrecise, validateRange, nearestRate } from '../src/lib
 import { BaseMediaController } from '../src/services/media/MediaController';
 import { LoopEngine, buildRateSteps, rateForRepetition } from '../src/services/practice/LoopEngine';
 import { buildExport, mergeLibraries, parseImport } from '../src/services/storage/importExport';
+import { addTap, bpmFromTaps, clampBpm, detectBpm, onsetEnvelope, ENVELOPE_FPS } from '../src/lib/tempo';
 import { DEFAULT_PRACTICE, type Library, type Track, type Clip } from '../src/types';
 
 let passed = 0;
@@ -142,6 +143,54 @@ await test('contagem ao dar play com loop ligado (sem sessão) e cancelamento', 
   assert.equal(c.getState().status, 'paused', 'cancelada: não toca depois');
 });
 
+await test('loop simples com contagem a cada volta: conta de novo ao voltar para A', async () => {
+  const c = new Fake(); const beats: number[] = []; const e = new LoopEngine(c, (b) => beats.push(b)); e.setRange(10, 12); e.setLoopEnabled(true);
+  e.setConfig({ ...DEFAULT_PRACTICE, countIn: 2, countEach: true, bpm: 240 });
+  c.t = 11; c.run(12.1);
+  assert.equal(e.getSnapshot().phase, 'countin', 'contagem começa na volta'); assert.equal(c.getState().status, 'paused'); assert.equal(c.t, 10); assert.deepEqual(beats, [1]);
+  await new Promise((r) => setTimeout(r, 600));
+  assert.deepEqual(beats, [1, 2]); assert.equal(e.getSnapshot().phase, 'idle'); assert.equal(c.getState().status, 'playing');
+  e.setConfig({ ...DEFAULT_PRACTICE, countIn: 2, countEach: false }); beats.length = 0;
+  c.run(12.1); assert.deepEqual(beats, [], 'sem repetir a contagem, só volta'); assert.equal(c.getState().status, 'playing');
+});
+await test('ritmo da contagem segue o BPM e a velocidade', async () => {
+  const c = new Fake(); const stamps: number[] = []; const e = new LoopEngine(c, () => stamps.push(Date.now())); e.setRange(10, 12); e.setLoopEnabled(true);
+  c.setRate(0.5); e.setConfig({ ...DEFAULT_PRACTICE, countIn: 3, bpm: 240 }); // 240 × 0,5 = 120 BPM → 500 ms
+  e.playWithCountIn(); await new Promise((r) => setTimeout(r, 1300));
+  const gaps = stamps.slice(1).map((t, i) => t - stamps[i]);
+  assert.equal(gaps.length, 2); for (const g of gaps) assert.ok(g > 420 && g < 620, String(g));
+  e.stopSession();
+});
+await test('tocar no ritmo: mediana dos toques e recomeço após pausa', () => {
+  let taps: number[] = [];
+  for (const t of [0, 500, 1000]) taps = addTap(taps, t);
+  assert.equal(Math.round(bpmFromTaps(taps) as number), 120);
+  taps = addTap(taps, 1510); taps = addTap(taps, 1990); taps = addTap(taps, 2900 /* toque atrasado */); taps = addTap(taps, 3400);
+  assert.equal(clampBpm(bpmFromTaps(taps) as number), 120, 'um toque fora do tempo não estraga a medida');
+  taps = addTap(taps, 9000); assert.deepEqual(taps, [9000]); assert.equal(bpmFromTaps(taps), null);
+  assert.equal(clampBpm(5), 30); assert.equal(clampBpm(999), 300);
+});
+await test('detecção automática do andamento em áudio sintético', () => {
+  const sr = 8000;
+  const make = (bpm: number, seconds: number) => {
+    const data = new Float32Array(sr * seconds); const period = (60 / bpm) * sr;
+    for (let k = 0; k * period < data.length; k++) {
+      const s0 = Math.round(k * period); const amp = k % 4 === 0 ? 1 : 0.6;
+      for (let j = 0; j < 400 && s0 + j < data.length; j++) data[s0 + j] = amp * Math.sin(j * 0.9) * Math.exp(-j / 80);
+    }
+    for (let i = 0; i < data.length; i++) data[i] += (Math.sin(i * 12.9898) * 43758.5453 % 1) * 0.01;
+    return data;
+  };
+  for (const bpm of [72, 96, 120, 150]) {
+    const env = onsetEnvelope([make(bpm, 20)], sr); assert.equal(env.length, 20 * ENVELOPE_FPS);
+    const found = detectBpm(env); assert.ok(found !== null && Math.abs(found - bpm) <= 2, `${bpm} → ${found}`);
+  }
+  const env = onsetEnvelope([make(100, 30)], sr); const found = detectBpm(env, ENVELOPE_FPS, 8, 20);
+  assert.ok(found !== null && Math.abs(found - 100) <= 2, `trecho A–B: ${found}`);
+  assert.equal(detectBpm(env, ENVELOPE_FPS, 8, 10), null, 'trecho curto demais');
+  assert.equal(detectBpm(onsetEnvelope([new Float32Array(sr * 10)], sr)), null, 'silêncio');
+});
+
 // ---------- Importação / exportação ----------
 const mkTrack = (id: string, over: Partial<Track> = {}): Track => ({
   id, title: 'Música ' + id, source: 'youtube', youtubeId: 'abcdefghi' + id.padStart(2, '0'), youtubeUrl: '', favorite: false, categoryId: null,
@@ -199,6 +248,12 @@ await test('validação rejeita arquivos inválidos e sanitiza dados ruins', () 
   const bad = { app: 'loop-musical', version: 1, tracks: [mkTrack('1'), { id: 'x' }, mkTrack('3', { youtubeId: 'curto' })], clips: [mkClip('c', '1', 5, 4), mkClip('d', '1', 1, 9), mkClip('e', 'naoexiste', 1, 9), { id: 'f', trackId: '1', start: 'a', end: 2 }], categories: [], setlists: [] };
   const r = parseImport(JSON.stringify(bad)); assert.ok(r.ok); if (!r.ok) return;
   assert.equal(r.data.tracks.length, 1); assert.equal(r.data.clips.length, 1); assert.equal(r.data.clips[0].id, 'd'); assert.ok(r.warnings.length >= 2);
+});
+await test('BPM é importado, validado e arquivos antigos recebem o padrão', () => {
+  const lib = (bpm: unknown) => JSON.stringify({ app: 'loop-musical', version: 1, tracks: [mkTrack('1', { practice: { ...DEFAULT_PRACTICE, bpm } as never })], clips: [], categories: [], setlists: [] });
+  const ok = parseImport(lib(128)); assert.ok(ok.ok && ok.data.tracks[0].practice.bpm === 128);
+  const bad = parseImport(lib(9999)); assert.ok(bad.ok && bad.data.tracks[0].practice.bpm === DEFAULT_PRACTICE.bpm);
+  const old = parseImport(lib(undefined)); assert.ok(old.ok && old.data.tracks[0].practice.bpm === 60);
 });
 
 console.log(`\n${passed} testes passaram`);

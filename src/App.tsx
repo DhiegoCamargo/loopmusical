@@ -15,6 +15,7 @@ import { LoopPanel } from './components/player/LoopPanel';
 import { LibraryPanel } from './components/library/LibraryPanel';
 import { ClipsPanel } from './components/clips/ClipsPanel';
 import { PracticePanel } from './components/practice/PracticePanel';
+import { TempoControls } from './components/player/TempoControls';
 import { Welcome } from './components/Welcome';
 
 type Tab = 'library' | 'clips' | 'practice';
@@ -56,6 +57,18 @@ function Shell({ notify }: { notify: (text: string, kind?: ToastMessage['kind'])
   const track = lib.getTrack(activeId);
   const session = useStudySession(track);
   const waveform = useWaveform(session.controller);
+  const tempoControls = (
+    <TempoControls
+      bpm={session.practice.bpm}
+      rate={session.media.rate}
+      onChange={(bpm) => session.updatePractice({ bpm })}
+      waveform={waveform}
+      isYouTube={track?.source === 'youtube'}
+      a={session.a}
+      b={session.b}
+      disabled={session.engineSnap.session}
+    />
+  );
 
   const changeTab = (t: Tab) => {
     setTab(t);
@@ -214,7 +227,10 @@ function Shell({ notify }: { notify: (text: string, kind?: ToastMessage['kind'])
                 onSetA={(v) => session.setPointA(v)}
                 onSetB={(v) => session.setPointB(v)}
                 countIn={session.practice.countIn}
-                onCountIn={(n) => session.updatePractice({ countIn: n })}
+                onCountIn={(n) => session.updatePractice(n > 0 && session.practice.countIn === 0 ? { countIn: n, countEach: true } : { countIn: n })}
+                countEach={session.practice.countEach}
+                onCountEach={(v) => session.updatePractice({ countEach: v })}
+                tempo={tempoControls}
                 onToggleLoop={session.toggleLoop}
                 onClear={session.clearRange}
                 onSaveClip={(name) => {
@@ -248,7 +264,7 @@ function Shell({ notify }: { notify: (text: string, kind?: ToastMessage['kind'])
           <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
             {tab === 'library' && <LibraryPanel activeId={activeId} onOpen={openTrack} onDeleted={(id) => id === activeId && setActiveId(null)} notify={notify} />}
             {tab === 'clips' && <ClipsPanel session={session} />}
-            {tab === 'practice' && <PracticePanel session={session} />}
+            {tab === 'practice' && <PracticePanel session={session} tempo={tempoControls} />}
           </div>
         </aside>
       </main>

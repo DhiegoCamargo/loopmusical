@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { clamp } from '../../lib/time';
 import { Switch, TimeField } from '../ui/controls';
 import { Icon } from '../ui/Icon';
@@ -67,9 +67,13 @@ interface Props {
   onSaveClip: (name: string) => void;
   countIn: number;
   onCountIn: (beats: number) => void;
+  countEach: boolean;
+  onCountEach: (v: boolean) => void;
+  /** Controles de andamento da contagem. */
+  tempo?: ReactNode;
 }
 
-export function LoopPanel({ a, b, duration, loopEnabled, disabled, error, isYouTube, onMarkA, onMarkB, onSetA, onSetB, onToggleLoop, onClear, onSaveClip, countIn, onCountIn }: Props) {
+export function LoopPanel({ a, b, duration, loopEnabled, disabled, error, isYouTube, onMarkA, onMarkB, onSetA, onSetB, onToggleLoop, onClear, onSaveClip, countIn, onCountIn, countEach, onCountEach, tempo }: Props) {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
   const hasRange = a !== null && b !== null;
@@ -106,6 +110,15 @@ export function LoopPanel({ a, b, duration, loopEnabled, disabled, error, isYouT
               <option key={n} value={n}>{n} tempos</option>
             ))}
           </select>
+        )}
+        {countIn > 0 && (
+          <div className="w-full space-y-3 border-t border-ink-700 pt-3">
+            <label className="flex items-center gap-2 text-sm text-ink-200">
+              <input type="checkbox" className="accent-[#34e0cc]" checked={countEach} onChange={(e) => onCountEach(e.target.checked)} />
+              Contar de novo cada vez que o loop volta
+            </label>
+            {tempo}
+          </div>
         )}
       </div>
 

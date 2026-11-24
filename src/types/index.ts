@@ -16,8 +16,10 @@ export interface PracticeConfig {
   repsPerStep: number;
   /** Contagem antes de iniciar (1, 2, 3…): número de tempos. 0 = desligada. */
   countIn: number;
-  /** Repetir a contagem a cada volta do ensaio. */
+  /** Repetir a contagem a cada volta do loop/ensaio. */
   countEach: boolean;
+  /** Andamento da música em BPM (na velocidade 1×). Define o ritmo da contagem. */
+  bpm: number;
 }
 
 export const DEFAULT_PRACTICE: PracticeConfig = {
@@ -29,6 +31,7 @@ export const DEFAULT_PRACTICE: PracticeConfig = {
   repsPerStep: 2,
   countIn: 0,
   countEach: false,
+  bpm: 60,
 };
 
 /** Estado de estudo salvo automaticamente por música. */

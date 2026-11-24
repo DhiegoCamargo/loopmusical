@@ -1,3 +1,4 @@
+import { MIN_BPM, MAX_BPM } from '../../lib/tempo';
 import {
   DEFAULT_PRACTICE,
   EXPORT_APP,
@@ -64,6 +65,10 @@ function sanitizePractice(v: unknown): PracticeConfig {
     targetRate: Math.max(startRate, targetRate),
     countIn: Math.min(8, Math.floor(nonNeg(o.countIn, 0))),
     countEach: o.countEach === true,
+    bpm: (() => {
+      const n = num(o.bpm);
+      return n !== null && n >= MIN_BPM && n <= MAX_BPM ? Math.round(n) : DEFAULT_PRACTICE.bpm;
+    })(),
     repsPerStep: Math.min(99, Math.max(1, Math.floor(nonNeg(o.repsPerStep, DEFAULT_PRACTICE.repsPerStep)))),
   };
 }

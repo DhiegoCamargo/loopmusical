@@ -1,5 +1,6 @@
 import { DEFAULT_PRACTICE, type PracticeConfig } from '../../types';
 import { MIN_LOOP_LENGTH, nearestRate } from '../../lib/time';
+import { DEFAULT_BPM } from '../../lib/tempo';
 import type { MediaController } from '../media/MediaController';
 
 export type SessionPhase = 'idle' | 'running' | 'gap' | 'countin' | 'finished';
@@ -22,7 +23,6 @@ export interface EngineSnapshot {
 }
 
 const IDLE: EngineSnapshot = { phase: 'idle', completed: 0, total: 0, currentRate: 1, gapRemaining: 0, countBeat: 0, countTotal: 0, session: false };
-const BEAT_MS = 1000;
 
 /** Velocidades da rampa progressiva: as suportadas entre a inicial e a-alvo. */
 export function buildRateSteps(start: number, target: number, available: number[]): number[] {
@@ -191,6 +191,7 @@ export class LoopEngine {
     this.gapPausedAt = Date.now();
     this.controller.pause();
     this.controller.seek(this.a as number);
+    const beatMs = this.beatMs(kind);
     let beat = 1;
     this.set({ ...this.snapshot, phase: 'countin', countBeat: 1, countTotal: total, gapRemaining: 0 });
     this.onBeat?.(1, total);
@@ -201,7 +202,15 @@ export class LoopEngine {
         this.patchSnap({ countBeat: beat });
         this.onBeat?.(beat, total);
       }
-    }, BEAT_MS);
+    }, beatMs);
+  }
+
+  /** Duração de um tempo da contagem: segue o BPM da música na velocidade atual. */
+  private beatMs(kind: 'session' | 'plain'): number {
+    const bpm = (kind === 'session' ? this.cfg?.bpm : this.config.bpm) ?? DEFAULT_BPM;
+    const rate = kind === 'session' ? this.snapshot.currentRate : this.controller.getState().rate;
+    const effective = Math.max(1, (bpm > 0 ? bpm : DEFAULT_BPM) * (rate > 0 ? rate : 1));
+    return 60000 / effective;
   }
 
   private finishCountIn(): void {
@@ -273,6 +282,11 @@ export class LoopEngine {
 
     if (this.snapshot.phase !== 'running' || !this.cfg) {
       // Loop simples
+      if (this.config.countEach && this.config.countIn > 0) {
+        // A contagem recomeça assim que o loop volta para A.
+        this.beginCountIn('plain');
+        return;
+      }
       this.controller.seek(a);
       if (this.controller.getState().status === 'ended') this.controller.play();
       return;

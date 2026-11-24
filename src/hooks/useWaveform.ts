@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { MediaController } from '../services/media/MediaController';
 import type { LocalMediaController } from '../services/media/LocalMediaController';
+import { onsetEnvelope } from '../lib/tempo';
 
 export type WaveformStatus = 'idle' | 'loading' | 'ready' | 'unavailable';
 
@@ -11,9 +12,11 @@ export interface Waveform {
   status: WaveformStatus;
   /** Picos reais (0–1) calculados a partir do áudio decodificado. */
   peaks: Float32Array | null;
+  /** Envelope de ataques (ENVELOPE_FPS quadros/s), usado para detectar o andamento. */
+  envelope: Float32Array | null;
 }
 
-const NONE: Waveform = { status: 'idle', peaks: null };
+const NONE: Waveform = { status: 'idle', peaks: null, envelope: null };
 
 /** Calcula a forma de onda real de um arquivo de áudio local. Nunca gera dados fictícios. */
 export function useWaveform(controller: MediaController | null): Waveform {
@@ -26,11 +29,11 @@ export function useWaveform(controller: MediaController | null): Waveform {
     }
     const el = (controller as LocalMediaController).element;
     if (!el || el instanceof HTMLVideoElement) {
-      setWf({ status: 'unavailable', peaks: null });
+      setWf({ status: 'unavailable', peaks: null, envelope: null });
       return;
     }
     let cancelled = false;
-    setWf({ status: 'loading', peaks: null });
+    setWf({ status: 'loading', peaks: null, envelope: null });
 
     (async () => {
       const Ctx: typeof AudioContext | undefined =
@@ -60,12 +63,14 @@ export function useWaveform(controller: MediaController | null): Waveform {
         let global = 0;
         for (const p of peaks) if (p > global) global = p;
         if (global > 0) for (let i = 0; i < BUCKETS; i++) peaks[i] /= global;
-        if (!cancelled) setWf({ status: 'ready', peaks });
+        const channels = Array.from({ length: audio.numberOfChannels }, (_, ch) => audio.getChannelData(ch));
+        const envelope = onsetEnvelope(channels, audio.sampleRate);
+        if (!cancelled) setWf({ status: 'ready', peaks, envelope });
       } finally {
         void ctx.close();
       }
     })().catch(() => {
-      if (!cancelled) setWf({ status: 'unavailable', peaks: null });
+      if (!cancelled) setWf({ status: 'unavailable', peaks: null, envelope: null });
     });
 
     return () => {
